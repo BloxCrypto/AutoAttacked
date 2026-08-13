@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.kodari.autoattack.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "ClientPlayerInteractionManagerMixin",
+    "InGameHudMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

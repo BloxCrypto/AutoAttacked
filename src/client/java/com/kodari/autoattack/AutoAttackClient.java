@@ -8,6 +8,7 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
@@ -54,17 +55,7 @@ public final class AutoAttackClient implements ClientModInitializer {
         }
 
         while (aimAssistKey.wasPressed()) {
-            AutoAttackConfig config = AutoAttackConfig.get();
-            config.aimAssistEnabled = !config.aimAssistEnabled;
-            AutoAttackConfig.save();
-            if (client.player != null) {
-                client.player.sendMessage(
-                        Text.translatable(config.aimAssistEnabled
-                                ? "message.autoattack.aim_assist_enabled"
-                                : "message.autoattack.aim_assist_disabled"),
-                        true
-                );
-            }
+            toggleAimAssist(client);
         }
 
         AutoAttackConfig config = AutoAttackConfig.get();
@@ -101,7 +92,7 @@ public final class AutoAttackClient implements ClientModInitializer {
         }
 
         Entity target = entityHitResult.getEntity();
-        if (!(target instanceof LivingEntity livingTarget) || !livingTarget.isAlive()) {
+        if (!target.isAlive()) {
             return;
         }
 
@@ -113,13 +104,38 @@ public final class AutoAttackClient implements ClientModInitializer {
         if (target instanceof PlayerEntity && !config.attackPlayers) {
             return;
         }
-        if (!(target instanceof PlayerEntity) && !config.attackMobs) {
+        if (!(target instanceof PlayerEntity)
+                && (!config.attackMobs || !isSelectedMob(target, config.autoAttackMobs))) {
+            if (target instanceof LivingEntity || !config.attackNonEntities) {
+                return;
+            }
+        }
+
+        if (config.critsOnly && !isCriticalAttack(player)) {
             return;
         }
 
         client.interactionManager.attackEntity(player, target);
         player.swingHand(Hand.MAIN_HAND);
         ticksSinceAttack = 0;
+    }
+
+    public static void toggleAimAssist() {
+        toggleAimAssist(MinecraftClient.getInstance());
+    }
+
+    private static void toggleAimAssist(MinecraftClient client) {
+        AutoAttackConfig config = AutoAttackConfig.get();
+        config.aimAssistEnabled = !config.aimAssistEnabled;
+        AutoAttackConfig.save();
+        if (client.player != null) {
+            client.player.sendMessage(
+                    Text.translatable(config.aimAssistEnabled
+                            ? "message.autoattack.aim_assist_enabled"
+                            : "message.autoattack.aim_assist_disabled"),
+                    true
+            );
+        }
     }
 
     private static void applyAimAssist(MinecraftClient client, AutoAttackConfig config) {
@@ -151,15 +167,35 @@ public final class AutoAttackClient implements ClientModInitializer {
 
         Rotation targetRotation = calculateRotations(player, target);
         float smoothness = MathHelper.clamp(config.aimAssistSmoothness, 0.01f, 1.0f);
-        player.setYaw(interpolateRotation(player.getYaw(), targetRotation.yaw(), smoothness));
-        player.setPitch(interpolateRotation(player.getPitch(), targetRotation.pitch(), smoothness));
+        float yawDelta = MathHelper.wrapDegrees(targetRotation.yaw() - player.getYaw());
+        float pitchDelta = MathHelper.wrapDegrees(targetRotation.pitch() - player.getPitch());
+        if (Math.abs(yawDelta) < 0.01f && Math.abs(pitchDelta) < 0.01f) {
+            return;
+        }
+
+        if (smoothness >= 0.9999f) {
+            player.setYaw(targetRotation.yaw());
+            player.setPitch(targetRotation.pitch());
+            return;
+        }
+
+        player.setYaw(player.getYaw() + yawDelta * smoothness);
+        player.setPitch(player.getPitch() + pitchDelta * smoothness);
     }
 
     private static boolean isAllowedTarget(LivingEntity target, AutoAttackConfig config) {
         if (target instanceof PlayerEntity) {
             return config.attackPlayers && !target.isSpectator();
         }
-        return config.attackMobs;
+        return config.attackMobs && isSelectedMob(target, config.aimAssistMobs);
+    }
+
+    private static boolean isSelectedMob(Entity target, java.util.List<String> selectedMobs) {
+        return selectedMobs.contains(Registries.ENTITY_TYPE.getId(target.getType()).toString());
+    }
+
+    private static boolean isCriticalAttack(PlayerEntity player) {
+        return player.fallDistance > 0.0f && !player.isOnGround();
     }
 
     private static boolean isWithinFov(PlayerEntity player, LivingEntity target, float fov) {
