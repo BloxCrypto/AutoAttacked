@@ -18,7 +18,7 @@
   "category.autoattack.utility": "Utility",
   "option.autoattack.no_break_delay": "No Break Delay",
   "option.autoattack.removed_scoreboard": "Removed Scoreboard",
-  "option.autoattack.fast_break": "Fast Break",
+  "option.autoattack.fast_break": "Fast Break (BETA)",
   "option.autoattack.fast_break_speed": "Fast Break Speed",
   "key.autoattack.aim_assist": "Toggle Aim Assist",
   "message.autoattack.aim_assist_enabled": "Aim Assist: On",

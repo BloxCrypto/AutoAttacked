@@ -2,12 +2,7 @@ package com.kodari.autoattack.mixin;
 
 import com.kodari.autoattack.AutoAttackConfig;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
-import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.network.ClientPlayerInteractionManager;
-import net.minecraft.entity.Entity;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -39,26 +34,5 @@ public abstract class ClientPlayerInteractionManagerMixin {
             return original;
         }
         return original * Math.max(1.0f, config.fastBreakSpeed);
-    }
-
-    @WrapOperation(
-            method = "breakBlock",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/world/World;breakBlock(Lnet/minecraft/util/math/BlockPos;ZLnet/minecraft/entity/Entity;I)Z"
-            )
-    )
-    private boolean autoattack$waitForServerBlockUpdate(
-            World world,
-            BlockPos pos,
-            boolean move,
-            Entity breakingEntity,
-            int maxUpdateDepth,
-            Operation<Boolean> original
-    ) {
-        if (AutoAttackConfig.get().fastBreak) {
-            return true;
-        }
-        return original.call(world, pos, move, breakingEntity, maxUpdateDepth);
     }
 }
